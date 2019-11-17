@@ -1,6 +1,7 @@
 from collections import defaultdict
+import random
 
-from counts import unigram_count, bigram_count, trigram_count
+from counts import bigram_count, trigram_count, unigram_count
 from perplexity import get_perplexity
 
 
@@ -18,7 +19,25 @@ class TrigramModel:
         self.trigram_model = self.fit(self.trigram_counts, self.bigram_counts)
 
     def write_lines(self, n_lines, context=None):
-        return ""
+        lines = []
+        curr = tuple(["<s>", "<s>"])
+        next_word = ""
+        if not context:
+            for _ in range(n_lines):
+                while next_word != "</s>":
+                    next_word = random.choices(
+                        list(self.trigram_model[curr].keys()),
+                        weights=list(self.trigram_model[curr].values()),
+                        k=1,
+                    )[0]
+                    lines += [next_word]
+                    curr = tuple([curr[1], next_word])
+                next_word = ""
+                curr = tuple(["<s>", "<s>"])
+                print(" ".join(lines))
+                lines = []
+        else:
+            return ""
 
     def get_simillarity(self, file):
         pp = get_perplexity(self.trigram_model, file)

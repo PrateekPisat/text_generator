@@ -1,10 +1,8 @@
+pip==13.3.1
+setuptools==41.6.0
+tensorflow
+keras
 nltk
-numpy
-bs4
-scikit-learn
-spacy==2.1.0
-readability
-neuralcoref
+spacy
 pandas
-language-check
 gensim

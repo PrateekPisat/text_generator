@@ -44,7 +44,7 @@ for file_name in training_data:
 word_counts = Counter(word_list)
 
 # Mapping from index to word : that's the vocabulary
-vocabulary_inv = list(sorted([x[0] for x in word_counts]))
+vocabulary_inv = list(sorted([x[0] for x in word_counts.most_common()]))
 
 # Mapping from word to index
 vocab = {x: i for i, x in enumerate(vocabulary_inv)}

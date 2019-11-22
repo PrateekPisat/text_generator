@@ -1,2 +1,2 @@
 install-deps:
-	pip-install -r ./deps/requirements.in
+	pip install -r ./deps/requirements.in

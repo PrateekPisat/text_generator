@@ -1,12 +1,15 @@
-from models import TrigramModel
+import os
 
-from utils import get_test_files, get_training_files
+from models import TrigramModel
+from utils import get_personality_files, get_test_files, get_training_data
 
 
 if __name__ == "__main__":
-    training_files = get_training_files()
+    filename = ".{sep}models{sep}trigram_model".format(sep=os.sep)
+    charles = get_personality_files()
+    training_data = get_training_data()
     test_files = get_test_files()
-    model = TrigramModel(training_files=training_files, alpha=1)
-    # for file in test_files:
-    #     print(model.get_simillarity(file))
+    model = TrigramModel(training_data=training_data, personality=charles)
+    for file in test_files:
+        print("SimScore = {}".format(model.get_simillarity(file)))
     model.write_lines(10)

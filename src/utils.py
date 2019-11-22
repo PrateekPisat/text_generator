@@ -1,5 +1,5 @@
+import json
 import os
-import math
 
 
 def get_smallest_trigram_prob(trigram_model):
@@ -38,13 +38,24 @@ def file_opener(files):
             yield f
 
 
-def get_training_files():
+def get_personality_files():
     training = list()
-    dir_name = ".{sep}{dir}{sep}".format(sep=os.sep, dir="train")
+    dir_name = ".{sep}train{sep}charles{sep}".format(sep=os.sep)
     for _, __, files in os.walk(dir_name):
         for file in files:
             training += [dir_name + file]
     return training
+
+
+def get_training_data():
+    f_path = ".{sep}train{sep}english{sep}RC_2007-02".format(sep=os.sep)
+    with open(f_path) as f:
+        buff = f.read()
+        objs = buff.split("\n")
+        objs = objs[:-1]
+        json_objs = [json.loads(obj) for obj in objs]
+        comments = [j_obj["body"] for j_obj in json_objs]
+    return comments
 
 
 def get_test_files():
@@ -54,3 +65,10 @@ def get_test_files():
         for file in files:
             test += [dir_name + file]
     return test
+
+
+def create_word_list(words):
+    word_list = []
+    for word in words:
+        word_list += [word.lower()]
+    return word_list

@@ -14,7 +14,7 @@ def get_perplexity(model, file):
         total_words = len(word_tokenize(buffer))
         sents = sent_tokenize(buffer)
         perplexity = get_perplexity_for_file(sents, model, total_words)
-        logging.warning("PP for file {} = {}".format(f, perplexity))
+        logging.warning("PP for file {} = {}".format(f.name, perplexity))
     return perplexity
 
 
@@ -26,12 +26,6 @@ def get_perplexity_for_file(sents, model, total_words):
         words = word_tokenize(sent)
         trigrams = nltk.trigrams(words)
         for wi_2, wi_1, wi in trigrams:
-            # if wi not in model.vocab:
-            #     wi = "<UNK>"
-            # if wi_1 not in model.vocab:
-            #     wi_1 = "<UNK>"
-            # if wi_2 not in model.vocab:
-            #     wi_2 = "<UNK>"
             context = tuple([wi_2, wi_1])
             prob = model[context][wi] if wi in model[context] else smallest_prob
             log_prob += np.log2(prob)

@@ -34,7 +34,7 @@ def get_smallest_unigram_prob(model, V):
 
 def file_opener(files):
     for file in files:
-        with open(file) as f:
+        with open(file, encoding='utf-8') as f:
             yield f
 
 

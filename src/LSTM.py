@@ -1,132 +1,74 @@
 import logging
 import os
-import numpy as np
-import random
-import sys
-import time
-from collections import Counter
 
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Dense, Activation, Dropout
-from keras.layers import LSTM, Input, Bidirectional
-from keras.optimizers import Adam
-from keras.metrics import categorical_accuracy
-from keras.models import Sequential, Model
-from nltk.tokenize import word_tokenize
-from six.moves import cPickle
+import numpy
+from keras.callbacks import ModelCheckpoint
+from keras.layers import LSTM, Dense, Dropout
+from keras.models import Sequential
+from keras.utils import np_utils
 
-from utils import create_word_list, get_personality_files
+from utils import file_opener, get_personality_files
 
+logging.basicConfig(level=logging.INFO)
 
-import spacy
-nlp = spacy.load('en_core_web_sm')
-
-# define parameters used in the tutorial
-save_dir = '.{sep}model_artifacts{sep}'.format(sep=os.sep)
-vocab_file = os.path.join(save_dir, "words_vocab.pkl")
-sequences_step = 1
-seq_length = 30
-
-word_list = []
+chars = []
+raw_text = ""
 training_data = get_personality_files()
+save_path = ".{sep}model_artifacts{sep}".format(sep=os.sep)
 
-for file_name in training_data:
-    # read data
-    with open(file_name, "r") as f:
-        data = f.read()
-    # create sentences
-    words = word_tokenize(data)
-    wl = create_word_list(words)
-    word_list = word_list + wl
+# read training data
+for file in file_opener(training_data):
+    raw_text += file.read()
 
-# Build Dictionary
-# count the number of words
-word_counts = Counter(word_list)
+# create mapping of unique chars to integers
+chars = sorted(list(set(raw_text)))
+char_to_int = dict((c, i) for i, c in enumerate(chars))
 
-# Mapping from index to word : that's the vocabulary
-vocabulary_inv = list(sorted([x[0] for x in word_counts.most_common()]))
+n_chars = len(raw_text)
+n_vocab = len(chars)
+logging.info("Total Characters: {}".format(n_chars))
+logging.info("Total Vocab: {}".format(n_vocab))
 
-# Mapping from word to index
-vocab = {x: i for i, x in enumerate(vocabulary_inv)}
-words = [x[0] for x in word_counts.most_common()]
+# Prepare Training Data.
+seq_length = 100
+X = []
+y = []
+for i in range(0, n_chars - seq_length, 1):
+    seq_in = raw_text[i: i + seq_length]
+    seq_out = raw_text[i + seq_length]
+    X.append([char_to_int[char] for char in seq_in])
+    y.append(char_to_int[seq_out])
+n_patterns = len(X)
+logging.info("Total Patterns: {}".format(n_patterns))
 
-# size of the vocabulary
-vocab_size = len(words)
+# reshape X to be [samples, time steps, features]
+logging.info("Vectorizing Training Data...")
+X = numpy.reshape(X, (n_patterns, seq_length, 1))
+# normalize
+X = X / float(n_vocab)
+# one hot encode the output variable
+y = np_utils.to_categorical(y)
 
-logging.warning("Creating Sentences.")
-# create sequences
-sequences = []
-next_words = []
-for i in range(0, len(word_list) - seq_length, sequences_step):
-    sequences.append(word_list[i: i + seq_length])
-    next_words.append(word_list[i + seq_length])
-logging.warning("Done Creating Sentences.")
+# define the LSTM model
+logging.info("Building Model...")
+model = Sequential()
+model.add(LSTM(256, input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
+model.add(Dropout(0.2))
+model.add(LSTM(256))
+model.add(Dropout(0.2))
+model.add(Dense(y.shape[1], activation='softmax'))
+model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-
-# Vectorize the sequences and next_words
-logging.warning("Vectorizing Sentences Sentences.")
-X = np.zeros((len(sequences), seq_length, vocab_size), dtype=np.bool)
-y = np.zeros((len(sequences), vocab_size), dtype=np.bool)
-for i, sentence in enumerate(sequences):
-    for t, word in enumerate(sentence):
-        X[i, t, vocab[word]] = 1
-    y[i, vocab[next_words[i]]] = 1
-logging.warning("Done Vectorizing Sentences Sentences.")
-
-
-def bidirectional_lstm_model(seq_length, vocab_size):
-    # Hyperparameters
-    rnn_size = 256
-    seq_length = 30
-    learning_rate = 0.001
-    print('Build LSTM model.')
-    model = Sequential()
-    model.add(
-        Bidirectional(LSTM(rnn_size, activation="relu"), input_shape=(seq_length, vocab_size))
-    )
-    model.add(Dropout(0.6))
-    model.add(Dense(vocab_size))
-    model.add(Activation('softmax'))
-
-    optimizer = Adam(lr=learning_rate)
-    model.compile(
-        loss='categorical_crossentropy', optimizer=optimizer, metrics=[categorical_accuracy]
-    )
-    print("model built!")
-    return model
-
-
-# Build Model
-logging.warning("Building Model.")
-md = bidirectional_lstm_model(seq_length, vocab_size)
-md.summary()
-logging.warning("Done Building Model.")
-
-# Train The model
-logging.warning("Trainig Model.")
-batch_size = 32
-num_epochs = 50
-
-callbacks = [
-    EarlyStopping(patience=4, monitor='val_loss'),
-    ModelCheckpoint(
-        filepath=save_dir + "/" + 'my_model_gen_sentences.{epoch:02d}-{val_loss:.2f}.hdf5',
-        monitor='val_loss',
-        verbose=0,
-        mode='auto',
-        period=2
-    )
-]
-# fit the model
-history = md.fit(
-    X, y,
-    batch_size=batch_size,
-    shuffle=True,
-    epochs=num_epochs,
-    callbacks=callbacks,
-    validation_split=0.2
+# define the checkpoint
+logging.info("Defining Checkpoint...")
+filepath = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+checkpoint = ModelCheckpoint(
+    os.path.join(save_path, filepath),
+    monitor='loss', verbose=1,
+    save_best_only=True, mode='min'
 )
+callbacks_list = [checkpoint]
 
-# save the model
-md.save(save_dir + "/" + 'my_model_generate_sentences.h5')
-logging.warning("Done Trainig Model.")
+# Train Model
+logging.info("Training Model...")
+model.fit(X, y, epochs=20, batch_size=128, callbacks=callbacks_list)

@@ -3,7 +3,7 @@ install-deps:
 
 
 run-LSTM:
-	cd src && python LSTM.py && popd src
+	cd src && python LSTM.py && cd ..
 
 run-LM:
 	pushd src

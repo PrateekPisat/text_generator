@@ -1,6 +1,10 @@
 import json
 import os
 
+import numpy
+from keras.layers import LSTM, Dense, Dropout
+from keras.models import Sequential
+
 
 def get_smallest_trigram_prob(trigram_model):
     smallest_prob = 1
@@ -72,3 +76,23 @@ def create_word_list(words):
     for word in words:
         word_list += [word.lower()]
     return word_list
+
+
+def build_lstm_model(sequence_len, n_features):
+    model = Sequential()
+    model.add(LSTM(256, input_shape=(sequence_len, n_features), return_sequences=True))
+    model.add(Dropout(0.2))
+    model.add(LSTM(256))
+    model.add(Dropout(0.2))
+    model.add(Dense(n_features, activation='softmax'))
+    return model
+
+
+def sample(preds, temperature=1.0):
+    # helper function to sample an index from a probability array
+    preds = numpy.asarray(preds).astype('float64')
+    preds = numpy.log(preds) / temperature
+    exp_preds = numpy.exp(preds)
+    preds = exp_preds / numpy.sum(exp_preds)
+    probas = numpy.random.multinomial(1, preds, 1)
+    return numpy.argmax(probas)

@@ -38,13 +38,13 @@ def get_smallest_unigram_prob(model, V):
 
 def file_opener(files):
     for file in files:
-        with open(file, encoding='utf-8') as f:
+        with open(file, encoding='utf-8-sig') as f:
             yield f
 
 
-def get_personality_files():
+def get_personality_files(name):
     training = list()
-    dir_name = ".{sep}train{sep}charles{sep}".format(sep=os.sep)
+    dir_name = ".{sep}train{sep}{name}{sep}".format(sep=os.sep, name=name)
     for _, __, files in os.walk(dir_name):
         for file in files:
             training += [dir_name + file]
@@ -84,6 +84,7 @@ def build_lstm_model(sequence_len, n_features):
     model.add(Dropout(0.2))
     model.add(LSTM(256))
     model.add(Dropout(0.2))
+    model.add(Dense(n_features))
     model.add(Dense(n_features, activation='softmax'))
     return model
 

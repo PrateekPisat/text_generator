@@ -78,7 +78,7 @@ def train_lstm_model(name, train=False, path=None):
         model.fit(
             X,
             y,
-            epochs=15,
+            epochs=300,
             batch_size=128,
             callbacks=callbacks_list,
             shuffle=True,

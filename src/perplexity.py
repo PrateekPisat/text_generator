@@ -8,7 +8,11 @@ from utils import get_smallest_trigram_prob
 
 
 def get_perplexity(model, file):
-    """Calculate perplexity for `add_alpha_smoothing_model`."""
+    """Calculate perplexity for `add_alpha_smoothing_model`.
+
+    :param model: An instance of the triagram model.
+    :param file: the file for which we calculate the perplexity.
+    """
     with open(file) as f:
         buffer = f.read()
         total_words = len(word_tokenize(buffer))

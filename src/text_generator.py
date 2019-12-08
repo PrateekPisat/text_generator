@@ -1,32 +1,31 @@
-import os
+import math
 import sys
 
 import numpy
-from nltk.tokenize import word_tokenize
 
 from LSTM import train_lstm_model
-from summary import get_summary
-
-import math
-
-# seed = "as a subject for the remarks of the evening, the perpetuation of our  political institutions, is sel"
-# seed = "and the shoemaker was not allowed by us to be a husbandman, or a weaver, or a builder--in order that"
+from models import TrigramModel
+from utils import get_personality_files, get_training_data, training_on_seed
 
 
-def gen_sentences(n_chars, seed, path=None):
-    model, char_to_int, int_to_char, n_vocab, seq_length = train_lstm_model(
-        "charles",
-        train=False,
-        path=".{sep}model_artifacts{sep}char-gen-model-200-0.2899.hdf5".format(sep=os.sep),
-    )
+def gen_sentences(name, n_chars, seed, path=None):
+    """Return a string of generated characters.
+
+    :param name: name of direcotry that consists of the text corpus.
+    :param n_chars: number of characters to generate.
+    :param path: path to a pretrained model.
+    """
+    model, char_to_int, int_to_char, n_vocab, seq_length = train_lstm_model(name, False, path)
     dataX = []
-    seq_length = 100
-    print("Seed Sentence Length Should Be = {}".format(seq_length))
-    print(len(seed))
-    assert len(seed) == seq_length
+    print("Seed Sentence Length Should Be >= {}".format(seq_length))
+    print("Length of sentence you provided = {}".format(len(seed)))
+    assert len(seed) >= seq_length
+    # save weights
+    model.save(".{sep}model_artifact{sep}temp_model")
+    if len(seed) > seq_length:
+        model = training_on_seed(model, seed, seq_length, char_to_int)
     dataX.append([char_to_int[char] for char in seed])
     pattern = numpy.zeros((seq_length, n_vocab))
-
     for index, char in enumerate(seed):
         pattern[index, char_to_int[char]] = 1
     gen = ""
@@ -42,51 +41,77 @@ def gen_sentences(n_chars, seed, path=None):
         pattern = numpy.append(pattern[1:], numpy.array([next_word]), axis=0)
     return "{}{}".format(seed, gen)
 
-def get_perplexity(text):
-    model, char_to_int, int_to_char, n_vocab, seq_length = train_lstm_model(
-        "charles",
-        train=False,
-        path=".{sep}model_artifacts{sep}char-gen-model-200-0.2899.hdf5".format(sep=os.sep),
+
+def get_perplexity(name, text, model_path):
+    """Return perplexity for given text with respect to a given model.
+
+    :param name: name of direcotry that consists of the text corpus.
+    :param text: the text for which we generate perplexity.
+    :param path: path to a pretrained model.
+    """
+    model, char_to_int, _, n_vocab, seq_length = train_lstm_model(
+        name=name, train=False, path=model_path,
     )
     dataX = []
     seq_length = 100
-    
-    dataX.append([char_to_int[char] for char in text])
+
+    # Clean text
+    clean_text = ""
+    for c in text:
+        if c in char_to_int:
+            clean_text += c
+    dataX.append([char_to_int[char] for char in clean_text])
     pattern = numpy.zeros((seq_length, n_vocab))
 
-    for index, char in enumerate(text[0:100]):
+    for index, char in enumerate(clean_text[0:100]):
         pattern[index, char_to_int[char]] = 1
     total_log_probability = 0
     # generate characters
-    for i in range(100, len(text)):
+    for i in range(100, len(clean_text)):
         X = numpy.reshape(pattern, (1, seq_length, n_vocab))
         prediction = model.predict(X, verbose=0)
-        print(prediction)
-        index = char_to_int[text[i]]
+        index = char_to_int[clean_text[i]]
         result = prediction[0][index]
-        print(index, result)
         total_log_probability += math.log(result)
         next_word = numpy.zeros(n_vocab)
         next_word[index] = 1
         pattern = numpy.append(pattern[1:], numpy.array([next_word]), axis=0)
-    normalized_probability = math.exp(-1 * total_log_probability / len(text))
-    print("total probability", normalized_probability)
+    normalized_probability = math.exp(-1 * total_log_probability / len(clean_text))
     return normalized_probability
-
-
-# Doc Similarity
-def doc_sim(test_file):
-    pass
 
 
 if __name__ == "__main__":
     args = sys.argv
-    if args[1] == "-g" or args[1] == "--generate_sent":
-        n_chars = int(args[2])
-        seed = args[3]
-        print(gen_sentences(n_chars, seed))
+    if args[1] == "-b" or args[1] == "--build_model":
+        corpus_dir_name = args[2]
+        epochs = int(args[3])
+        model, _, __, ___, ____ = train_lstm_model(
+            corpus_dir_name, train=True, epochs=epochs
+        )
+    elif args[1] == "-g" or args[1] == "--generate_sent":
+        name = args[2]
+        n_chars = int(args[3])
+        seed = args[4]
+        path = args[5]
+        print(gen_sentences(name, n_chars=n_chars, seed=seed, path=path))
     elif args[1] == "-s" or args[1] == "--similarity":
-        text = args[2]
+        name = args[2]
+        text = args[3]
         text = text.replace(r'\ufeff', '')
         text = text.lower()
-        get_perplexity(text)
+        model_path = args[4]
+        print(get_perplexity(name, text, model_path))
+    elif args[1] == "--trigram-generate":
+        name = args[2]
+        n_lines = int(args[3])
+        training_files = get_training_data()
+        personality_data = get_personality_files(name)
+        model = TrigramModel(training_files, personality_data, alpha=1)
+        model.write_lines(n_lines)
+    elif args[1] == "--trigram-similarity":
+        name = args[2]
+        file = args[3]
+        training_files = get_training_data()
+        personality_data = get_personality_files(name)
+        model = TrigramModel(training_files, personality_data, alpha=1)
+        print(model.get_simillarity(file))

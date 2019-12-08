@@ -1,9 +1,7 @@
 import json
 import os
 
-import numpy
-from keras.layers import LSTM, Dense, Dropout
-from keras.models import Sequential
+from keras.utils import np_utils
 
 
 def get_smallest_trigram_prob(trigram_model):
@@ -38,7 +36,7 @@ def get_smallest_unigram_prob(model, V):
 
 def file_opener(files):
     for file in files:
-        with open(file, encoding='utf-8-sig') as f:
+        with open(file, encoding='utf-8') as f:
             yield f
 
 
@@ -78,22 +76,17 @@ def create_word_list(words):
     return word_list
 
 
-def build_lstm_model(sequence_len, n_features):
-    model = Sequential()
-    model.add(LSTM(256, input_shape=(sequence_len, n_features), return_sequences=True))
-    model.add(Dropout(0.2))
-    model.add(LSTM(256))
-    model.add(Dropout(0.2))
-    model.add(Dense(n_features))
-    model.add(Dense(n_features, activation='softmax'))
+def training_on_seed(model, seed, seq_length, char_to_int):
+    n_chars = len(seed)
+    # Prepare Training Data.
+    dataX = []
+    datay = []
+    for i in range(0, n_chars - seq_length, 1):
+        seq_in = seed[i: i + seq_length]
+        seq_out = seed[i + seq_length]
+        dataX.append([char_to_int[char] for char in seq_in])
+        datay.append(char_to_int[seq_out])
+    X = np_utils.to_categorical(dataX)
+    y = np_utils.to_categorical(datay)
+    model.fit(X, y)
     return model
-
-
-def sample(preds, temperature=1.0):
-    # helper function to sample an index from a probability array
-    preds = numpy.asarray(preds).astype('float64')
-    preds = numpy.log(preds) / temperature
-    exp_preds = numpy.exp(preds)
-    preds = exp_preds / numpy.sum(exp_preds)
-    probas = numpy.random.multinomial(1, preds, 1)
-    return numpy.argmax(probas)

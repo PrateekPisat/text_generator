@@ -2,16 +2,25 @@ import logging
 import os
 
 from keras.callbacks import ModelCheckpoint
+from keras.models import load_model
 from keras.utils import np_utils
 
-from utils import build_lstm_model, get_personality_files
+from models import build_lstm_model
+from utils import get_personality_files
 
 logging.basicConfig(level=logging.INFO)
 
 
-def train_lstm_model(name, train=False, path=None):
+def train_lstm_model(name, train=False, path=None, epochs=200):
+    """ Return a LSTM model trained on some text corpus.
+
+    :param name: name of direcotry that consists of the text corpus.
+    :param train: whether to train the model.
+    :param path: path to a pretrained model.
+    :param epochs: the number of epochs to which to train the model to.
+    """
     raw_text = ""
-    filepath = "char-gen-model-{epoch:02d}-{loss:.4f}.hdf5"
+    filepath = "char-gen-model-for-{}".format(name)
     training_data = get_personality_files(name)
 
     save_path = ".{sep}model_artifacts{sep}{name}".format(sep=os.sep, name=name)
@@ -35,7 +44,6 @@ def train_lstm_model(name, train=False, path=None):
     logging.info("Chars = {}".format(chars))
 
     seq_length = 100
-    model = build_lstm_model(seq_length, n_vocab)
     if train:
         # Prepare Training Data.
         dataX = []
@@ -59,17 +67,19 @@ def train_lstm_model(name, train=False, path=None):
 
         # define the LSTM model
         logging.info("Building Model...")
+        model = build_lstm_model(seq_length, n_vocab, name)
         model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
         # define the checkpoint
         logging.info("Defining Checkpoint...")
+        checkpoint_loc = filepath + "-{epoch:0.2d}-{loss:0.4f}"
         checkpoint = ModelCheckpoint(
-            os.path.join(save_path, filepath),
+            os.path.join(save_path, checkpoint_loc),
             monitor='loss',
             verbose=1,
             save_best_only=True,
             mode='min',
-            period=10,
+            period=25,
         )
         callbacks_list = [checkpoint]
 
@@ -78,14 +88,14 @@ def train_lstm_model(name, train=False, path=None):
         model.fit(
             X,
             y,
-            epochs=300,
+            epochs=epochs,
             batch_size=128,
             callbacks=callbacks_list,
             shuffle=True,
             validation_split=0.2,
         )
+        model.save(os.path.join(save_path, filepath))
+        logging.info("model saved to {}".format(os.path.join(save_path, filepath)))
     else:
-        model.load_weights(path)
-
-    logging.info("model saved to {}".format(os.path.join(save_path, filepath)))
+        model = load_model(path)
     return model, char_to_int, int_to_char, n_vocab, seq_length

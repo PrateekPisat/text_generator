@@ -1,14 +1,10 @@
 # import os
 from collections import defaultdict
 
-# import gensim.models.keyedvectors as word2vec
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 
 from utils import file_opener
-
-# path = os.environ["model_path"]
-# word_to_vec = word2vec.KeyedVectors.load_word2vec_format(path, binary=True)
 
 
 def unigram_count(training_data, personality_files, gamma):

@@ -1,6 +1,8 @@
 import random
 from collections import defaultdict
 
+from keras.layers import LSTM, Dense, Dropout
+from keras.models import Sequential
 from nltk.tokenize import word_tokenize
 
 from counts import adjust_counts, bigram_count, trigram_count, unigram_count
@@ -76,3 +78,19 @@ class TrigramModel:
                 trigram_model[(wi_2, wi_1)][wi] = (numerator / denomenator)
 
         return trigram_model
+
+
+def build_lstm_model(sequence_len, n_vocab, name):
+    """Build and Return an LSTM.
+
+    :param sequence_length: Total number of sequences to train model on, size of X_train matrix.
+    :param n_vocab: Total number of characters in vocabulary.
+    """
+    model = Sequential()
+    model.add(LSTM(256, input_shape=(sequence_len, n_vocab), return_sequences=True))
+    model.add(Dropout(0.2))
+    model.add(LSTM(256))
+    model.add(Dropout(0.2))
+    model.add(Dense(n_vocab))
+    model.add(Dense(n_vocab, activation='softmax'))
+    return model

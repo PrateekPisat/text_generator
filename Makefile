@@ -1,5 +1,5 @@
 install-deps:
-	pip install -r ./deps/requirements.in
+	poetry install
 
 
 build-LSTM:

@@ -1,8 +1,0 @@
-pip==19.3.1
-setuptools==41.6.0
-tensorflow
-keras
-nltk
-spacy
-pandas
-gensim
